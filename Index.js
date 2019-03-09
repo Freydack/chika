@@ -28,8 +28,9 @@ bot.on('message', function (message) {
     if (!message.author.bot && !message.guild) {
         bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
     }
-    const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
+ 
     if (message.author.bot || !message.guild) return;
+    const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
     if (message.content.startsWith(prefix + 'pc')) {
         
         let user = message.mentions.users.first();
