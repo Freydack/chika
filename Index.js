@@ -292,4 +292,4 @@ journal.send(embed);
 }
 });
 
-bot.login('process.env.TOKEN');
+bot.login(process.env.TOKEN);
