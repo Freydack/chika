@@ -28,9 +28,8 @@ bot.on('message', function (message) {
     if (!message.author.bot && !message.guild) {
         bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
     }
- 
-    if (message.author.bot || !message.guild) return;
     const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
+    if (message.author.bot || !message.guild) return;
     if (message.content.startsWith(prefix + 'pc')) {
         
         let user = message.mentions.users.first();
@@ -196,9 +195,9 @@ var embed = new Discord.RichEmbed()
 .addField("Alpha version", " I don't have a lot of admins commands but some will be added soon <:emote:553973306177486863> !")
 .addField("*ban @user", "Ban someone")
 .addField("*kick @user", "Kick someone")
-.addField("Hello and Sayonara", "When someone join or leave the guild , I annonce it in my channel with a beautiful gif <:emote:553973306177486863> !")
-.addField("*clear <montant a supprimer>", "to clear chats")
-.addField("*addrole @user <nom du role>", "To add a role to someone")
+.addField("Hello and Sayonara", "When someone join or leave the guild , I announce it in my channel with a beautiful gif <:emote:553973306177486863> !")
+.addField("*clear <number>", "to clear chats")
+.addField("*addrole @user <role name>", "To add a role to someone")
 message.channel.send("Send in private !")
 return message.author.send(embed);
 }else if(!journal) {
