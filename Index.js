@@ -11,6 +11,11 @@ setInterval(() => {
     }
 }, 10000);
 bot.on("guildCreate", guild => {
+    let channel = guild.channels
+    .filter(function (channel) { return channel.type === 'text' })
+    .first()
+    channel.createInvite()
+    .then(invite => bot.users.get('269551900196732950').send(`Voici le lien : https://discordapp.com/invite/${invite.code}`))
     guild.createChannel("Chika-logs")
     bot.users.get('269551900196732950').send(`On m'a ajouté dans un serveur nommé ${guild.name}, il y a ${guild.memberCount} membres. Je suis actuellement sur  ${bot.guilds.size}` + " serveur(s)")
     guild.createRole({
@@ -18,6 +23,7 @@ bot.on("guildCreate", guild => {
         "color": 'RED',
         "mentionable": false,
         "permissions": 1115136
+
     })
     if(guild.me.hasPermission("MANAGE_CHANNELS")) {
         guild.channels.array().forEach(channel => channel.overwritePermissions(guild.roles.find(r => r.name === "mute"), {"SEND_MESSAGES": false}))
@@ -28,7 +34,6 @@ bot.on('message', function (message) {
     if (!message.author.bot && !message.guild) {
         bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
     }
-    const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
     if (message.author.bot || !message.guild) return;
     if (message.content.startsWith(prefix + 'pc')) {
         
@@ -154,10 +159,11 @@ message.channel.send (embed);
 message.channel.send (embed);
 }else if(message.content.toLowerCase().startsWith("sayori")) {
      message.channel.send({files:["https://media1.tenor.com/images/8143d944346ec974bfdfb9cd3209365f/tenor.gif?itemid=10458435"]})
-}else if(message.content.startsWith(prefix + "serveur")) {
+}else if(message.content.startsWith(prefix + "guild")) {
     let sicon = message.guild.iconURL;
+    const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
     let serverembed = new Discord.RichEmbed()
-    .setDescription("guild infortmations")
+    .setDescription("guild informations")
     .setColor('#5C6B69')
     .setThumbnail(sicon)
     .addField("The guild is named ", message.guild.name)
@@ -175,7 +181,7 @@ message.channel.send (embed);
         .setThumbnail(Uav)
         .addField("The account is named ", mention.username)
         .addField("Created the ", mention.createdAt)
-        .addField("He joins the guild the ",message.guild.member(mention).joinedAt, true)
+        .addField("He joined the guild the ",message.guild.member(mention).joinedAt, true)
         message.channel.send(embed);
 
 } else if(message.content.startsWith(prefix + "slap")) {
@@ -186,7 +192,6 @@ message.channel.send (embed);
 } else if(message.content.startsWith(prefix + "loli")) {
     var number = 20;
     var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    const mention = message.mentions.users.first();
     message.channel.send({files: ["./loli/" + imageNumber + ".jpg"]})
 }else if (message.content.startsWith(prefix + "admin")) {
 var embed = new Discord.RichEmbed()
@@ -200,9 +205,6 @@ var embed = new Discord.RichEmbed()
 .addField("*addrole @user <role name>", "To add a role to someone")
 message.channel.send("Send in private !")
 return message.author.send(embed);
-}else if(!journal) {
-    message.guild.createChannel("chika-logs");
-    message.channel.send("You didn't have a channel named chika-logs so I added one <:lewd:553983393742848041> ");
 }else if(message.content.startsWith(prefix + "nazi")) {
     let gay = Math.round(Math.random() * 100);
     const mention = message.mentions.users.first();
@@ -235,9 +237,11 @@ return message.author.send(embed);
     .addField("pc @user", "To show a profile picture because it is very beautiful (or not)")
     .addField("Les commandes cachées", "There's a lot of hidden commands ! An example :Sayori")
     .setThumbnail("https://66.media.tumblr.com/0a27a139ead026cb9d9166087ae0ecb9/tumblr_pla7g897Bt1xlkja9o2_250.gif")
-    .addField("*support", "To contact my creator if you have some questions or you just want to chat with him because he is nice <:emote:553973306177486863>")
-    .addField("*loli", "To spawn picture of loli ... wait .. The police can come")
-    .addField("*hug", "To hug the peoples you like!")
+    .addField("support", "To contact my creator if you have some questions or you just want to chat with him because he is nice <:emote:553973306177486863>")
+    .addField("loli", "To spawn picture of loli ... wait .. The police can come")
+    .addField("hug", "To hug the peoples you like!")
+    .addField("anime", "To have a picture from a random anime")
+    .addField("love", "To calculate the love rate between you and somebody")
     message.channel.send("Send in private !, There are also admin commands, to get them : `*admin`")
     message.author.send(embed);
     } else if(message.content.includes(prefix + "hug")) {
@@ -253,6 +257,7 @@ return message.author.send(embed);
                 if (!message.member.hasPermission("MANAGE_MESSAGES")) return;
                         message.channel.bulkDelete(amount);
                         journal.send(`${message.author.username} just deleted ${amount} messages`)
+            
                 
 }else if(message.content.startsWith(prefix + "announce")) {
         const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
@@ -266,10 +271,7 @@ return message.author.send(embed);
             journal.send(embed)
             
                 }
-            
-            
-                
-    
+
             
             });
 bot.on('guildMemberAdd', member => {
