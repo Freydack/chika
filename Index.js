@@ -158,7 +158,7 @@ message.channel.send (embed);
 .setColor ("#5C6B69")
 message.channel.send (embed);
 }else if(message.content.toLowerCase().startsWith("sayori")) {
-     message.channel.send({files:["https://media1.tenor.com/images/8143d944346ec974bfdfb9cd3209365f/tenor.gif?itemid=10458435"]})
+     message.channel.send({files:["https://media1.tenor.com/images/8143d944346ec974bfdfb9cd3209365f/tenor.gif"]})
 }else if(message.content.startsWith(prefix + "guild")) {
     let sicon = message.guild.iconURL;
     const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
