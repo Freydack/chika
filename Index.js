@@ -35,7 +35,7 @@ bot.on('message', function (message) {
         bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
     }
     if (message.author.bot || !message.guild) return;
-    if (message.content.startsWith(prefix + 'pc')) {
+    if (message.content.startsWith(prefix + 'pp')) {
         
         let user = message.mentions.users.first();
         let Uav = user.displayAvatarURL;
@@ -234,8 +234,8 @@ return message.author.send(embed);
     .addField("cookie @user", "Give a cookie to someone because it's good !")    
     .addField("calc" , "To calculate <:emote:553973306177486863>")
     .addField("slap @user", "To slap the bad persons")
-    .addField("pc @user", "To show a profile picture because it is very beautiful (or not)")
-    .addField("Les commandes cachées", "There's a lot of hidden commands ! An example :Sayori")
+    .addField("pp @user", "To show a profile picture because it is very beautiful (or not)")
+    .addField("The hidden commands", "There's a lot of hidden commands ! An example :Sayori")
     .setThumbnail("https://66.media.tumblr.com/0a27a139ead026cb9d9166087ae0ecb9/tumblr_pla7g897Bt1xlkja9o2_250.gif")
     .addField("support", "To contact my creator if you have some questions or you just want to chat with him because he is nice <:emote:553973306177486863>")
     .addField("loli", "To spawn picture of loli ... wait .. The police can come")
@@ -277,7 +277,7 @@ return message.author.send(embed);
 bot.on('guildMemberAdd', member => {
 const journal = member.guild.channels.find(channel => channel.name === "chika-logs");
 var embed = new Discord.RichEmbed()
-.setDescription(`${member.displayName} join the guild , hello <:emote:553973306177486863>`)
+.setDescription(`${member.displayName} joined the guild , hello <:emote:553973306177486863>`)
 .setColor("#5C6B69")
 .setImage("https://i.redd.it/y07i2h02dog21.gif");
 journal.send(embed);
