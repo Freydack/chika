@@ -261,7 +261,7 @@ return message.author.send(embed);
                 
 }else if(message.content.startsWith(prefix + "announce")) {
         const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
-            var annonce = message.content.slice(8);
+            var annonce = message.content.slice(9);
             if(!message.member.hasPermission("ADMINISTRATOR")) return;
             var embed = new Discord.RichEmbed()
             .setTitle(`New announce from ${message.author.username} !`)
