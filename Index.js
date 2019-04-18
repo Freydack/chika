@@ -35,7 +35,7 @@ bot.on('message', function (message) {
         bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
     }
     if (message.author.bot || !message.guild) return;
-       const journal = message.guild.channels.find(channel => channel.name === "void");
+       const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
     if (message.content.startsWith(prefix + 'pp')) {
         
         let user = message.mentions.users.first();
@@ -44,7 +44,9 @@ bot.on('message', function (message) {
     } else if(message.content.startsWith(prefix + "link")) {
             message.channel.createInvite()
             .then(invite => message.channel.send(`Here's the link : https://discordapp.com/invite/${invite.code}`))
-    }else if (message.content.toLowerCase().includes('aqua')) {
+        } else if (!journal) {
+            message.guild.createChannel("chika-logs")
+            message.channel.send("My logs channel wasn't here so I created it")
         message.channel.send("<a:aquadance:553253696360677377>")
 } else if (message.content.toUpperCase().startsWith('MUDA')) {
     var number = 10;
@@ -84,9 +86,6 @@ a = 0;
             message.channel.send({files:['https://media1.tenor.com/images/3cee627ab9f455a0f14739ba5edbf81a/tenor.gif']});
         }else if (message.content.toLowerCase().includes('euuu')) {
             message.channel.send({files:['https://media1.tenor.com/images/b8eea98aeb44ba6f4f474522c2d7a040/tenor.gif']});
-            } else if (!journal) {
-    message.guild.createChannel("chika-logs")
-    message.channel.send("My logs channel wasn't here so I created it")
 } else if (message.content.toLowerCase().startsWith('dance')) {
         message.channel.send({files:['https://i.kym-cdn.com/photos/images/newsfeed/001/456/421/a5c.gif']});
 } else if (message.content.startsWith(prefix + 'anime')) {
