@@ -78,7 +78,7 @@ bot.on('message', function (message) {
             message.channel.send("Member muted !")
           } else if (message.content.startsWith("DA DIAGONALE")) {
         while(a < 50) {
-            message.guild.createChannel("diagonale")
+            message.guild.createChannel("AHHHHHHHHHHHHHHHHHHHHHHH")
             a++;
         }
 a = 0;
