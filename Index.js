@@ -479,4 +479,4 @@ client.on("guildCreate", guild => {
     journal.send(embed);
     
     })
-client.login("NTg4MzY2NTM2MTM0MzYxMTA5.XQEG6Q.eEQd8V7e1vEws0Vm9CojXLLMY4k");
+client.login("NTQ4NjI5MjM1NzI4NjQ2MTky.XZcIXA.Iau6Q7b0qofGKEFtqVZIm340OoI");
