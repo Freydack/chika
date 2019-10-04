@@ -209,7 +209,7 @@ client.on("guildCreate", guild => {
             .addField("Crée le","12 juin 2019")
             .addField("Créateur", "Tsuzue#9563")
             .addField("Genres", "Nsfw , utile , fun , musique ")
-	    .addField("invite", "https://discordapp.com/oauth2/authorize?client_id=588366536134361109&scope=bot&permissions=8")
+	    .addField("invite", "https://discordapp.com/oauth2/authorize?client_id=548629235728646192&scope=bot&permissions=8")
            message.channel.send(embed)
         
         }else if(message.content.startsWith( prefix + "avis")) {
