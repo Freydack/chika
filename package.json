@@ -1,20 +1,20 @@
 {
-  "name": "hitori-hana",
+  "name": "chika",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "dependencies": {
+    "discord.js": "^11.4.2",
+    "ffmpeg-binaries": "^4.0.0",
+    "morsify": "^2.0.0",
+    "random-puppy": "^1.1.0",
+    "simple-youtube-api": "^5.2.1",
+    "ytdl-core": "^0.29.7"
+  },
+  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "discord.js": "^11.5.1",
-    "lowdb": "^1.0.0",
-    "morsify": "^2.0.0",
-    "opusscript": "0.0.6",
-    "random-puppy": "^1.1.0",
-    "simple-youtube-api": "^5.2.0",
-    "ytdl-core": "^0.29.2"
-  }
+  "license": "ISC"
 }
