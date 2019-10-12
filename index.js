@@ -1,8 +1,6 @@
 const Discord = require('discord.js')
-const { Client, Util } = require('discord.js');
-const morsify = require('morsify');
 const client = new Discord.Client()
-const randomPuppy = require("random-puppy")
+const morsify = require('morsify');
 const prefix = "?"
 const YouTube = require('simple-youtube-api');
 const ytdl = require('ytdl-core');
@@ -177,4 +175,4 @@ client.on("guildCreate", guild => {
     })
 
 
-client.login("NjI5NjA5Mzk2NzgzMDIyMDkw.XZcPdw.6Y11DYfzdVKSEaqOGya2tBI655M");
+client.login("NjI5NjA5Mzk2NzgzMDIyMDkw.XaIzRA.NWj3qmCXFUPTnWoGj0xIyuo14NI");
